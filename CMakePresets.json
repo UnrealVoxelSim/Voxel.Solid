@@ -2,7 +2,7 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 28,
+    "minor": 30,
     "patch": 0
   },
   "configurePresets": [
@@ -14,6 +14,7 @@
       "installDir": "${sourceDir}/out/install/${presetName}",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "UNREALVOXELSIM_BUILD_APP": "ON",
         "UNREALVOXELSIM_BUILD_MOCKS": "ON",
@@ -25,14 +26,18 @@
       "name": "windows-msvc-base",
       "hidden": true,
       "inherits": "base",
+      "binaryDir": "${sourceDir}/out/bs/${presetName}",
+      "installDir": "${sourceDir}/out/is/${presetName}",
       "architecture": {
         "value": "x64",
         "strategy": "external"
       },
       "cacheVariables": {
         "CMAKE_CXX_COMPILER": "cl.exe",
-        "VCPKG_HOST_TRIPLET": "x64-windows",
-        "VCPKG_TARGET_TRIPLET": "x64-windows"
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>",
+        "UNREALVOXELSIM_BUILD_MODULE_LENGTH_LIMIT": "16",
+        "VCPKG_HOST_TRIPLET": "x64-windows-static",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static"
       },
       "condition": {
         "type": "equals",
@@ -142,4 +147,3 @@
     }
   ]
 }
-

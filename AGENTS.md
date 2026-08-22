@@ -59,7 +59,10 @@ must not be added merely to reproduce the full template structure.
 - Shared target configuration comes from `UnrealVoxelSim/Build.CMake`.
 - Use target-based modern CMake. Do not use directory-wide include paths, link paths, compiler flags, or definitions.
 - Every production target uses C++23 with extensions disabled unless a documented platform adapter requires otherwise.
-- Do not hardcode an MSVC runtime library. A host adapter and all linked libraries must use compatible runtime settings.
+- Prefer static linking for internal and external dependencies whenever the platform and dependency support it. Interface
+  libraries remain header-only.
+- Windows presets use the `x64-windows-static` vcpkg host and target triplets, set `BUILD_SHARED_LIBS=OFF`, and select the
+  matching static MSVC runtime (`/MT` or `/MTd`). Do not override the runtime or linkage policy on individual targets.
 - Generated build directories and dependency source trees are not authoritative and must never be edited.
 
 ### Dependency management
@@ -67,25 +70,30 @@ must not be added merely to reproduce the full template structure.
 Dependency ownership has a strict boundary:
 
 - **vcpkg** manages external C and C++ packages.
-- **CPM.cmake** fetches internal repositories from the `UnrealVoxelSim` organization.
-- Do not fetch external packages with CPM.
+- **FetchContent** fetches internal repositories from the `UnrealVoxelSim` organization.
+- Do not fetch external packages with FetchContent.
 - Do not declare internal UnrealVoxelSim modules as vcpkg packages.
 
 External dependencies are declared in `vcpkg.json` and resolved through the pinned registry baseline in
 `vcpkg-configuration.json`. Use `find_package` and imported targets after vcpkg resolves them.
 
-CPM is also used to obtain `Build.CMake`. Shared build code may provide a thin policy function that delegates internal
-dependency resolution to `CPMAddPackage`; it must not reimplement fetching, caching, source overrides, or package
-resolution.
+FetchContent is also used to obtain `Build.CMake`. Shared build code owns canonical internal dependency identities,
+source overrides, Git references, and compact dependency directory names; individual modules must not bypass it for
+ordinary internal dependencies.
+
+Internal FetchContent identities are derived from canonical repository names, not caller-selected dependency aliases.
+On Windows, presets shorten those identities with a deterministic hash suffix and CMake policy `CMP0168` remains `NEW`
+to avoid redundant FetchContent sub-build paths. Do not work around path limits by inventing module-specific build-tree
+layouts or weakening canonical target and namespace names.
 
 Internal dependencies may follow a moving development reference or use an explicit immutable pin. An explicit
 per-dependency Git reference takes precedence over the configured project-wide reference, which defaults to `main` for
 active development. Use immutable commit hashes when reproducibility is required. The build system must provide a safe,
 documented way to refresh generated checkouts used by moving references.
 
-For simultaneous work on sibling repositories, use CPM's `CPM_<PackageName>_SOURCE` override. Never introduce a
-committed relative dependency path to a developer's workspace. Never modify the copy under `out`, `_deps`, or a CPM
-cache; modify the authoritative repository instead.
+For simultaneous work on sibling repositories, use `UNREALVOXELSIM_INTERNAL_SOURCE_ROOT` or a documented per-module
+source override. Never introduce a committed relative dependency path to a developer's workspace. Never modify the copy
+under `out` or `_deps`; modify the authoritative repository instead.
 
 Repositories are private unless explicitly changed. Never place access tokens, credentials, or authenticated URLs in
 CMake files, presets, manifests, or documentation.
