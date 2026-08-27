@@ -113,7 +113,7 @@ Controller::Controller(UnrealVoxelSim::Voxel::Api::IReader &reader,
                        UnrealVoxelSim::Voxel::Api::IRegionReader &regionReader,
                        UnrealVoxelSim::Voxel::Api::IEditor &editor, const std::span<const Api::MaterialId> materials,
                        std::unique_ptr<Events::Api::IChannel<Api::Changed>> changes)
-    : Impl_(std::make_unique<Impl>(reader, regionReader, editor, materials, std::move(changes)))
+    : m_Impl(std::make_unique<Impl>(reader, regionReader, editor, materials, std::move(changes)))
 {
 }
 
@@ -122,8 +122,8 @@ Controller::~Controller() = default;
 std::expected<Api::Cell, UnrealVoxelSim::Voxel::Api::ReadError> Controller::Read(
     const UnrealVoxelSim::Voxel::Api::Position position) const noexcept
 {
-    Impl_->AssertOwnerThread();
-    const auto value = Impl_->Reader.Read(position);
+    m_Impl->AssertOwnerThread();
+    const auto value = m_Impl->Reader.Read(position);
     if (!value)
     {
         return std::unexpected{value.error()};
@@ -134,27 +134,27 @@ std::expected<Api::Cell, UnrealVoxelSim::Voxel::Api::ReadError> Controller::Read
 std::expected<void, UnrealVoxelSim::Voxel::Api::ReadError> Controller::ReadRegion(
     const UnrealVoxelSim::Voxel::Api::Region region, const std::span<Api::Cell> output) const
 {
-    Impl_->AssertOwnerThread();
-    Impl_->RegionScratch.resize(output.size());
-    const auto result = Impl_->RegionReader.ReadRegion(region, Impl_->RegionScratch);
+    m_Impl->AssertOwnerThread();
+    m_Impl->RegionScratch.resize(output.size());
+    const auto result = m_Impl->RegionReader.ReadRegion(region, m_Impl->RegionScratch);
     if (!result)
     {
         return std::unexpected{result.error()};
     }
-    std::ranges::transform(Impl_->RegionScratch, output.begin(), ToCell);
+    std::ranges::transform(m_Impl->RegionScratch, output.begin(), ToCell);
     return {};
 }
 
 std::expected<Api::EditResult, Api::EditFailure> Controller::Place(const std::span<const Api::Placement> placements)
 {
-    Impl_->AssertOwnerThread();
+    m_Impl->AssertOwnerThread();
     std::vector<UnrealVoxelSim::Voxel::Api::CellMutation> mutations;
     std::vector<UnrealVoxelSim::Voxel::Api::Position> changedPositions;
     mutations.reserve(placements.size());
     changedPositions.reserve(placements.size());
     for (std::size_t index = 0; index < placements.size(); ++index)
     {
-        if (!Impl_->IsKnown(placements[index].Material))
+        if (!m_Impl->IsKnown(placements[index].Material))
         {
             return std::unexpected{Api::EditFailure{Api::EditError::UnknownMaterial, index, Api::Cell{}}};
         }
@@ -162,7 +162,7 @@ std::expected<Api::EditResult, Api::EditFailure> Controller::Place(const std::sp
         changedPositions.push_back(placements[index].Position);
     }
 
-    const auto result = Impl_->Editor.Apply(mutations);
+    const auto result = m_Impl->Editor.Apply(mutations);
     if (!result)
     {
         switch (result.error().Error)
@@ -182,19 +182,19 @@ std::expected<Api::EditResult, Api::EditFailure> Controller::Place(const std::sp
                                                 ToCell(result.error().Actual)}};
     }
 
-    Impl_->Publish(std::move(changedPositions));
+    m_Impl->Publish(std::move(changedPositions));
     return Api::EditResult{result->ChangedCellCount};
 }
 
 std::expected<Api::EditResult, Api::EditFailure> Controller::Remove(
     const std::span<const UnrealVoxelSim::Voxel::Api::Position> positions)
 {
-    Impl_->AssertOwnerThread();
+    m_Impl->AssertOwnerThread();
     std::vector<UnrealVoxelSim::Voxel::Api::CellMutation> mutations;
     mutations.reserve(positions.size());
     for (std::size_t index = 0; index < positions.size(); ++index)
     {
-        const auto current = Impl_->Reader.Read(positions[index]);
+        const auto current = m_Impl->Reader.Read(positions[index]);
         if (!current)
         {
             return std::unexpected{Api::EditFailure{Api::EditError::OutOfBounds, index, Api::Cell{}}};
@@ -206,7 +206,7 @@ std::expected<Api::EditResult, Api::EditFailure> Controller::Remove(
         mutations.push_back({positions[index], *current, {}});
     }
 
-    const auto result = Impl_->Editor.Apply(mutations);
+    const auto result = m_Impl->Editor.Apply(mutations);
     if (!result)
     {
         switch (result.error().Error)
@@ -225,14 +225,14 @@ std::expected<Api::EditResult, Api::EditFailure> Controller::Remove(
                                                 ToCell(result.error().Actual)}};
     }
 
-    Impl_->Publish({positions.begin(), positions.end()});
+    m_Impl->Publish({positions.begin(), positions.end()});
     return Api::EditResult{result->ChangedCellCount};
 }
 
 Api::IChangeSource &Controller::Changes() noexcept
 {
-    Impl_->AssertOwnerThread();
-    return *Impl_->Changes;
+    m_Impl->AssertOwnerThread();
+    return *m_Impl->Changes;
 }
 
 } // namespace UnrealVoxelSim::Voxel::Solid

@@ -10,12 +10,14 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
-      "installDir": "${sourceDir}/out/install/${presetName}",
+      "binaryDir": "${sourceDir}/o/${presetName}",
+      "installDir": "${sourceDir}/o/install/${presetName}",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "UNREALVOXELSIM_BUILD_CMAKE_SOURCE": "$env{UNREALVOXELSIM_BUILD_CMAKE_SOURCE}",
+        "UNREALVOXELSIM_INTERNAL_SOURCE_ROOT": "$env{UNREALVOXELSIM_INTERNAL_SOURCE_ROOT}",
         "UNREALVOXELSIM_BUILD_APP": "ON",
         "UNREALVOXELSIM_BUILD_MOCKS": "ON",
         "UNREALVOXELSIM_BUILD_TESTS": "ON",
@@ -26,8 +28,6 @@
       "name": "windows-msvc-base",
       "hidden": true,
       "inherits": "base",
-      "binaryDir": "${sourceDir}/out/bs/${presetName}",
-      "installDir": "${sourceDir}/out/is/${presetName}",
       "architecture": {
         "value": "x64",
         "strategy": "external"
@@ -35,7 +35,6 @@
       "cacheVariables": {
         "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>",
-        "UNREALVOXELSIM_BUILD_MODULE_LENGTH_LIMIT": "16",
         "VCPKG_HOST_TRIPLET": "x64-windows-static",
         "VCPKG_TARGET_TRIPLET": "x64-windows-static"
       },
@@ -95,54 +94,6 @@
       "inherits": "linux-clang-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "windows-msvc-debug",
-      "configurePreset": "windows-msvc-debug"
-    },
-    {
-      "name": "windows-msvc-release",
-      "configurePreset": "windows-msvc-release"
-    },
-    {
-      "name": "linux-clang-debug",
-      "configurePreset": "linux-clang-debug"
-    },
-    {
-      "name": "linux-clang-release",
-      "configurePreset": "linux-clang-release"
-    }
-  ],
-  "testPresets": [
-    {
-      "name": "windows-msvc-debug",
-      "configurePreset": "windows-msvc-debug",
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "windows-msvc-release",
-      "configurePreset": "windows-msvc-release",
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "linux-clang-debug",
-      "configurePreset": "linux-clang-debug",
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "linux-clang-release",
-      "configurePreset": "linux-clang-release",
-      "output": {
-        "outputOnFailure": true
       }
     }
   ]

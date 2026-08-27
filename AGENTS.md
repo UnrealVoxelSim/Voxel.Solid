@@ -93,7 +93,7 @@ documented way to refresh generated checkouts used by moving references.
 
 For simultaneous work on sibling repositories, use `UNREALVOXELSIM_INTERNAL_SOURCE_ROOT` or a documented per-module
 source override. Never introduce a committed relative dependency path to a developer's workspace. Never modify the copy
-under `out` or `_deps`; modify the authoritative repository instead.
+under `o` or `_deps`; modify the authoritative repository instead.
 
 Repositories are private unless explicitly changed. Never place access tokens, credentials, or authenticated URLs in
 CMake files, presets, manifests, or documentation.
@@ -113,6 +113,7 @@ CMake files, presets, manifests, or documentation.
   ambiguous, for example `Ecs::Api::EntityOperationError` and `Ecs::Api::ComponentOperationError`.
 - Dynamically polymorphic interfaces are prefixed with `I`.
 - Concept names describe requirements and are not prefixed with `I`.
+- Private data members use `m_CamelCase`; public data members use unprefixed `CamelCase`.
 - Use explicit domain types instead of primitive parameters when values have different meanings or invariants.
 
 ## Software architecture

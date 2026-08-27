@@ -46,7 +46,7 @@ class Controller final : public Api::IReader, public Api::IRegionReader, public 
 
   private:
     class Impl;
-    std::unique_ptr<Impl> Impl_;
+    std::unique_ptr<Impl> m_Impl;
 };
 
 } // namespace UnrealVoxelSim::Voxel::Solid
