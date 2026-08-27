@@ -56,18 +56,19 @@ namespace
     return regions;
 }
 
-} // namespace
+}
 
 class Controller::Impl final
 {
   public:
     Impl(UnrealVoxelSim::Voxel::Api::IReader &reader, UnrealVoxelSim::Voxel::Api::IRegionReader &regionReader,
          UnrealVoxelSim::Voxel::Api::IEditor &editor, std::span<const Api::MaterialId> materials,
-         std::unique_ptr<Events::Api::IChannel<Api::Changed>> changes)
+         std::unique_ptr<Events::Api::ISource<Api::Changed>> changeSource,
+         Events::Api::IPublisher<Api::Changed> &changePublisher)
         : Reader(reader), RegionReader(regionReader), Editor(editor), Materials(materials.begin(), materials.end()),
-          Changes(std::move(changes))
+          ChangeSource(std::move(changeSource)), ChangePublisher(changePublisher)
     {
-        if (!Changes)
+        if (!ChangeSource)
         {
             throw std::invalid_argument{"A solid voxel change channel is required."};
         }
@@ -96,7 +97,7 @@ class Controller::Impl final
     {
         if (!positions.empty())
         {
-            Changes->Publish(Api::Changed{MakeChangedRegions(std::move(positions))});
+            ChangePublisher.Publish(Api::Changed{MakeChangedRegions(std::move(positions))});
         }
     }
 
@@ -104,7 +105,8 @@ class Controller::Impl final
     UnrealVoxelSim::Voxel::Api::IRegionReader &RegionReader;
     UnrealVoxelSim::Voxel::Api::IEditor &Editor;
     std::vector<Api::MaterialId> Materials;
-    std::unique_ptr<Events::Api::IChannel<Api::Changed>> Changes;
+    std::unique_ptr<Events::Api::ISource<Api::Changed>> ChangeSource;
+    Events::Api::IPublisher<Api::Changed> &ChangePublisher;
     mutable std::vector<UnrealVoxelSim::Voxel::Api::CellValue> RegionScratch;
     std::thread::id OwnerThread{std::this_thread::get_id()};
 };
@@ -112,8 +114,10 @@ class Controller::Impl final
 Controller::Controller(UnrealVoxelSim::Voxel::Api::IReader &reader,
                        UnrealVoxelSim::Voxel::Api::IRegionReader &regionReader,
                        UnrealVoxelSim::Voxel::Api::IEditor &editor, const std::span<const Api::MaterialId> materials,
-                       std::unique_ptr<Events::Api::IChannel<Api::Changed>> changes)
-    : m_Impl(std::make_unique<Impl>(reader, regionReader, editor, materials, std::move(changes)))
+                       std::unique_ptr<Events::Api::ISource<Api::Changed>> changeSource,
+                       Events::Api::IPublisher<Api::Changed> &changePublisher)
+    : m_Impl(
+          std::make_unique<Impl>(reader, regionReader, editor, materials, std::move(changeSource), changePublisher))
 {
 }
 
@@ -232,7 +236,7 @@ std::expected<Api::EditResult, Api::EditFailure> Controller::Remove(
 Api::IChangeSource &Controller::Changes() noexcept
 {
     m_Impl->AssertOwnerThread();
-    return *m_Impl->Changes;
+    return *m_Impl->ChangeSource;
 }
 
-} // namespace UnrealVoxelSim::Voxel::Solid
+}

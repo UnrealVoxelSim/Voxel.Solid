@@ -31,9 +31,16 @@ constexpr std::array Materials{
 class ControllerTest : public ::testing::Test
 {
   protected:
+    static Controller CreateController(Events::InMemory::Dispatcher &dispatcher, Chunked::Field &field)
+    {
+        auto changes = dispatcher.CreateChannel<Changed>();
+        auto &publisher = static_cast<Events::Api::IPublisher<Changed> &>(*changes);
+        return Controller{field, field, field, Materials, std::move(changes), publisher};
+    }
+
     ControllerTest()
         : Field(Region{{-64, -64, -64}, {64, 64, 64}}),
-          Solids(Field, Field, Field, Materials, Dispatcher.CreateChannel<Changed>())
+          Solids(CreateController(Dispatcher, Field))
     {
     }
 
@@ -153,5 +160,5 @@ TEST_F(ControllerTest, FailedCommandsDoNotPublishEvents)
     EXPECT_EQ(deliveryCount, 0U);
 }
 
-} // namespace
-} // namespace UnrealVoxelSim::Voxel::Solid
+}
+}

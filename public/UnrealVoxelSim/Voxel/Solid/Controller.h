@@ -1,6 +1,7 @@
 #pragma once
 
-#include "UnrealVoxelSim/Events/Api/IChannel.h"
+#include "UnrealVoxelSim/Events/Api/IPublisher.h"
+#include "UnrealVoxelSim/Events/Api/ISource.h"
 #include "UnrealVoxelSim/Voxel/Api/IEditor.h"
 #include "UnrealVoxelSim/Voxel/Api/IReader.h"
 #include "UnrealVoxelSim/Voxel/Api/IRegionReader.h"
@@ -22,7 +23,8 @@ class Controller final : public Api::IReader, public Api::IRegionReader, public 
   public:
     Controller(UnrealVoxelSim::Voxel::Api::IReader &reader, UnrealVoxelSim::Voxel::Api::IRegionReader &regionReader,
                UnrealVoxelSim::Voxel::Api::IEditor &editor, std::span<const Api::MaterialId> materials,
-               std::unique_ptr<Events::Api::IChannel<Api::Changed>> changes);
+               std::unique_ptr<Events::Api::ISource<Api::Changed>> changeSource,
+               Events::Api::IPublisher<Api::Changed> &changePublisher);
     ~Controller() override;
 
     Controller(const Controller &) = delete;
@@ -49,4 +51,4 @@ class Controller final : public Api::IReader, public Api::IRegionReader, public 
     std::unique_ptr<Impl> m_Impl;
 };
 
-} // namespace UnrealVoxelSim::Voxel::Solid
+}
