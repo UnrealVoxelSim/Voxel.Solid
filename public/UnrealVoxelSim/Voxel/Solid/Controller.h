@@ -17,38 +17,39 @@
 
 namespace UnrealVoxelSim::Voxel::Solid
 {
+	class Controller final : public Api::IReader, public Api::IRegionReader, public Api::ICommands
+	{
+	public:
+		Controller(UnrealVoxelSim::Voxel::Api::IReader& reader,
+		           UnrealVoxelSim::Voxel::Api::IRegionReader& regionReader,
+		           UnrealVoxelSim::Voxel::Api::IEditor& editor,
+		           std::span<const Api::MaterialId> materials,
+		           std::unique_ptr<Events::Api::ISource<Api::Changed>> changeSource,
+		           Events::Api::IPublisher<Api::Changed>& changePublisher);
+		~Controller() override;
 
-class Controller final : public Api::IReader, public Api::IRegionReader, public Api::ICommands
-{
-  public:
-    Controller(UnrealVoxelSim::Voxel::Api::IReader &reader, UnrealVoxelSim::Voxel::Api::IRegionReader &regionReader,
-               UnrealVoxelSim::Voxel::Api::IEditor &editor, std::span<const Api::MaterialId> materials,
-               std::unique_ptr<Events::Api::ISource<Api::Changed>> changeSource,
-               Events::Api::IPublisher<Api::Changed> &changePublisher);
-    ~Controller() override;
+		Controller(const Controller&) = delete;
+		Controller& operator=(const Controller&) = delete;
+		Controller(Controller&&) = delete;
+		Controller& operator=(Controller&&) = delete;
 
-    Controller(const Controller &) = delete;
-    Controller &operator=(const Controller &) = delete;
-    Controller(Controller &&) = delete;
-    Controller &operator=(Controller &&) = delete;
+		[[nodiscard]] std::expected<Api::Cell, UnrealVoxelSim::Voxel::Api::ReadError> Read(
+			UnrealVoxelSim::Voxel::Api::Position position) const noexcept override;
 
-    [[nodiscard]] std::expected<Api::Cell, UnrealVoxelSim::Voxel::Api::ReadError> Read(
-        UnrealVoxelSim::Voxel::Api::Position position) const noexcept override;
+		[[nodiscard]] std::expected<void, UnrealVoxelSim::Voxel::Api::ReadError> ReadRegion(
+			UnrealVoxelSim::Voxel::Api::Region region,
+			std::span<Api::Cell> output) const override;
 
-    [[nodiscard]] std::expected<void, UnrealVoxelSim::Voxel::Api::ReadError> ReadRegion(
-        UnrealVoxelSim::Voxel::Api::Region region, std::span<Api::Cell> output) const override;
+		[[nodiscard]] std::expected<Api::EditResult, Api::EditFailure> Place(
+			std::span<const Api::Placement> placements) override;
 
-    [[nodiscard]] std::expected<Api::EditResult, Api::EditFailure> Place(
-        std::span<const Api::Placement> placements) override;
+		[[nodiscard]] std::expected<Api::EditResult, Api::EditFailure> Remove(
+			std::span<const UnrealVoxelSim::Voxel::Api::Position> positions) override;
 
-    [[nodiscard]] std::expected<Api::EditResult, Api::EditFailure> Remove(
-        std::span<const UnrealVoxelSim::Voxel::Api::Position> positions) override;
+		[[nodiscard]] Api::IChangeSource& Changes() noexcept;
 
-    [[nodiscard]] Api::IChangeSource &Changes() noexcept;
-
-  private:
-    class Impl;
-    std::unique_ptr<Impl> m_Impl;
-};
-
+	private:
+		class Impl;
+		std::unique_ptr<Impl> m_Impl;
+	};
 }
