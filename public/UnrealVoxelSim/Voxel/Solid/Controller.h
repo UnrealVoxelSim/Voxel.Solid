@@ -7,9 +7,10 @@
 #include "UnrealVoxelSim/Voxel/Api/IRegionReader.h"
 #include "UnrealVoxelSim/Voxel/Solid/Api/Changed.h"
 #include "UnrealVoxelSim/Voxel/Solid/Api/IChangeSource.h"
-#include "UnrealVoxelSim/Voxel/Solid/Api/ICommands.h"
+#include "UnrealVoxelSim/Voxel/Solid/Api/IPlacer.h"
 #include "UnrealVoxelSim/Voxel/Solid/Api/IReader.h"
 #include "UnrealVoxelSim/Voxel/Solid/Api/IRegionReader.h"
+#include "UnrealVoxelSim/Voxel/Solid/Api/IRemover.h"
 #include "UnrealVoxelSim/Voxel/Solid/Api/MaterialId.h"
 
 #include <memory>
@@ -17,7 +18,7 @@
 
 namespace UnrealVoxelSim::Voxel::Solid
 {
-	class Controller final : public Api::IReader, public Api::IRegionReader, public Api::ICommands
+	class Controller final : public Api::IReader, public Api::IRegionReader, public Api::IPlacer, public Api::IRemover
 	{
 	public:
 		Controller(UnrealVoxelSim::Voxel::Api::IReader& reader,

@@ -1,6 +1,6 @@
 #include "UnrealVoxelSim/Voxel/Solid/Controller.h"
 
-#include "UnrealVoxelSim/Events/InMemory/Dispatcher.h"
+#include "UnrealVoxelSim/Events/InMemory/Channel.h"
 #include "UnrealVoxelSim/Voxel/Chunked/Field.h"
 #include "UnrealVoxelSim/Voxel/Solid/Api/StandardMaterials.h"
 
@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstddef>
+#include <memory>
 #include <vector>
 
 namespace UnrealVoxelSim::Voxel::Solid
@@ -31,20 +32,19 @@ constexpr std::array Materials{
 class ControllerTest : public ::testing::Test
 {
   protected:
-    static Controller CreateController(Events::InMemory::Dispatcher &dispatcher, Chunked::Field &field)
+    static Controller CreateController(Chunked::Field &field)
     {
-        auto changes = dispatcher.CreateChannel<Changed>();
+        auto changes = std::make_unique<Events::InMemory::Channel<Changed>>();
         auto &publisher = static_cast<Events::Api::IPublisher<Changed> &>(*changes);
         return Controller{field, field, field, Materials, std::move(changes), publisher};
     }
 
     ControllerTest()
         : Field(Region{{-64, -64, -64}, {64, 64, 64}}),
-          Solids(CreateController(Dispatcher, Field))
+          Solids(CreateController(Field))
     {
     }
 
-    Events::InMemory::Dispatcher Dispatcher;
     Chunked::Field Field;
     Controller Solids;
 };
@@ -125,7 +125,7 @@ TEST_F(ControllerTest, ReadsLogicalRegionsWithoutExposingStoragePartitions)
     EXPECT_EQ(output[2].Material(), Api::StandardMaterials::Stone);
 }
 
-TEST_F(ControllerTest, PublishesOneQueuedEventWithCoalescedLogicalRuns)
+TEST_F(ControllerTest, PublishesOneImmediateEventWithCoalescedLogicalRuns)
 {
     std::size_t deliveryCount = 0;
     std::vector<Region> deliveredRegions;
@@ -140,23 +140,19 @@ TEST_F(ControllerTest, PublishesOneQueuedEventWithCoalescedLogicalRuns)
     };
 
     ASSERT_TRUE(Solids.Place(placements).has_value());
-    EXPECT_EQ(deliveryCount, 0U);
-    ASSERT_TRUE(Dispatcher.DispatchPending().has_value());
-
     EXPECT_EQ(deliveryCount, 1U);
     ASSERT_EQ(deliveredRegions.size(), 2U);
     EXPECT_EQ(deliveredRegions[0], (Region{{1, 2, 3}, {3, 3, 4}}));
     EXPECT_EQ(deliveredRegions[1], (Region{{10, 2, 3}, {11, 3, 4}}));
 }
 
-TEST_F(ControllerTest, FailedCommandsDoNotPublishEvents)
+TEST_F(ControllerTest, FailedEditsDoNotPublishEvents)
 {
     std::size_t deliveryCount = 0;
     auto subscription = Solids.Changes().Subscribe([&](const Changed &) noexcept { ++deliveryCount; });
     const Placement invalid{{0, 0, 0}, Api::MaterialId{99}};
 
     ASSERT_FALSE(Solids.Place(std::span{&invalid, 1}).has_value());
-    EXPECT_FALSE(Dispatcher.HasPending());
     EXPECT_EQ(deliveryCount, 0U);
 }
 
