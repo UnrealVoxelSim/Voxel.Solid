@@ -50,6 +50,7 @@ namespace UnrealVoxelSim::Voxel::Solid
 		[[nodiscard]] Api::IChangeSource& Changes() noexcept;
 
 	private:
+		// TODO Don't use PImpl pattern. See ModuleTemplate/AGENTS.md
 		class Impl;
 		std::unique_ptr<Impl> m_Impl;
 	};
