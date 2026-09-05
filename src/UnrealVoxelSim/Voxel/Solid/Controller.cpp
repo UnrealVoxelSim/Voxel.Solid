@@ -25,26 +25,23 @@ namespace UnrealVoxelSim::Voxel::Solid
 			return UnrealVoxelSim::Voxel::Api::CellValue{material.Value()};
 		}
 
-		[[nodiscard]] std::vector<UnrealVoxelSim::Voxel::Api::Region> MakeChangedRegions(
-			std::vector<UnrealVoxelSim::Voxel::Api::Position> positions)
+		[[nodiscard]] bool ChangeLess(const Api::CellChange& left, const Api::CellChange& right) noexcept
 		{
-			std::sort(positions.begin(), positions.end(), [](const auto left, const auto right)
-			{
-				if (left.Z != right.Z)
-				{
-					return left.Z < right.Z;
-				}
-				if (left.Y != right.Y)
-				{
-					return left.Y < right.Y;
-				}
-				return left.X < right.X;
-			});
+			if (left.Position.Z != right.Position.Z)
+				return left.Position.Z < right.Position.Z;
+			if (left.Position.Y != right.Position.Y)
+				return left.Position.Y < right.Position.Y;
+			return left.Position.X < right.Position.X;
+		}
 
+		[[nodiscard]] std::vector<UnrealVoxelSim::Voxel::Api::Region> MakeChangedRegions(
+			const std::span<const Api::CellChange> changes)
+		{
 			std::vector<UnrealVoxelSim::Voxel::Api::Region> regions;
-			regions.reserve(positions.size());
-			for (const auto position : positions)
+			regions.reserve(changes.size());
+			for (const auto& change : changes)
 			{
+				const auto position = change.Position;
 				if (!regions.empty() && regions.back().Min.Y == position.Y && regions.back().Min.Z == position.Z &&
 					regions.back().Max.X == position.X)
 				{
@@ -98,11 +95,13 @@ namespace UnrealVoxelSim::Voxel::Solid
 			return std::ranges::binary_search(Materials, material);
 		}
 
-		void Publish(std::vector<UnrealVoxelSim::Voxel::Api::Position> positions)
+		void Publish(std::vector<Api::CellChange> changes)
 		{
-			if (!positions.empty())
+			if (!changes.empty())
 			{
-				ChangePublisher.Publish(Api::Changed{MakeChangedRegions(std::move(positions))});
+				std::ranges::sort(changes, ChangeLess);
+				auto regions = MakeChangedRegions(changes);
+				ChangePublisher.Publish(Api::Changed{std::move(changes), std::move(regions)});
 			}
 		}
 
@@ -160,9 +159,9 @@ namespace UnrealVoxelSim::Voxel::Solid
 	{
 		m_Impl->AssertOwnerThread();
 		std::vector<UnrealVoxelSim::Voxel::Api::CellMutation> mutations;
-		std::vector<UnrealVoxelSim::Voxel::Api::Position> changedPositions;
+		std::vector<Api::CellChange> changes;
 		mutations.reserve(placements.size());
-		changedPositions.reserve(placements.size());
+		changes.reserve(placements.size());
 		for (std::size_t index = 0; index < placements.size(); ++index)
 		{
 			if (!m_Impl->IsKnown(placements[index].Material))
@@ -170,7 +169,7 @@ namespace UnrealVoxelSim::Voxel::Solid
 				return std::unexpected{Api::EditFailure{Api::EditError::UnknownMaterial, index, Api::Cell{}}};
 			}
 			mutations.push_back({placements[index].Position, {}, ToCellValue(placements[index].Material)});
-			changedPositions.push_back(placements[index].Position);
+			changes.push_back({placements[index].Position, {}, Api::Cell{placements[index].Material}});
 		}
 
 		const auto result = m_Impl->Editor.Apply(mutations);
@@ -214,7 +213,7 @@ namespace UnrealVoxelSim::Voxel::Solid
 			};
 		}
 
-		m_Impl->Publish(std::move(changedPositions));
+		m_Impl->Publish(std::move(changes));
 		return Api::EditResult{result->ChangedCellCount};
 	}
 
@@ -223,7 +222,9 @@ namespace UnrealVoxelSim::Voxel::Solid
 	{
 		m_Impl->AssertOwnerThread();
 		std::vector<UnrealVoxelSim::Voxel::Api::CellMutation> mutations;
+		std::vector<Api::CellChange> changes;
 		mutations.reserve(positions.size());
+		changes.reserve(positions.size());
 		for (std::size_t index = 0; index < positions.size(); ++index)
 		{
 			const auto current = m_Impl->Reader.Read(positions[index]);
@@ -236,6 +237,7 @@ namespace UnrealVoxelSim::Voxel::Solid
 				return std::unexpected{Api::EditFailure{Api::EditError::Empty, index, Api::Cell{}}};
 			}
 			mutations.push_back({positions[index], *current, {}});
+			changes.push_back({positions[index], ToCell(*current), {}});
 		}
 
 		const auto result = m_Impl->Editor.Apply(mutations);
@@ -277,7 +279,7 @@ namespace UnrealVoxelSim::Voxel::Solid
 			};
 		}
 
-		m_Impl->Publish({positions.begin(), positions.end()});
+		m_Impl->Publish(std::move(changes));
 		return Api::EditResult{result->ChangedCellCount};
 	}
 

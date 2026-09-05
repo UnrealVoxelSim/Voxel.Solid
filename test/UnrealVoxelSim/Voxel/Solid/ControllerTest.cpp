@@ -128,9 +128,11 @@ TEST_F(ControllerTest, ReadsLogicalRegionsWithoutExposingStoragePartitions)
 TEST_F(ControllerTest, PublishesOneImmediateEventWithCoalescedLogicalRuns)
 {
     std::size_t deliveryCount = 0;
+    std::vector<Api::CellChange> deliveredCells;
     std::vector<Region> deliveredRegions;
     auto subscription = Solids.Changes().Subscribe([&](const Changed &event) noexcept {
         ++deliveryCount;
+        deliveredCells = event.Cells;
         deliveredRegions = event.Regions;
     });
     const std::array placements{
@@ -141,9 +143,28 @@ TEST_F(ControllerTest, PublishesOneImmediateEventWithCoalescedLogicalRuns)
 
     ASSERT_TRUE(Solids.Place(placements).has_value());
     EXPECT_EQ(deliveryCount, 1U);
+    ASSERT_EQ(deliveredCells.size(), 3U);
+    EXPECT_EQ(deliveredCells[0].Position, (Position{1, 2, 3}));
+    EXPECT_TRUE(deliveredCells[0].Previous.IsEmpty());
+    EXPECT_EQ(deliveredCells[0].Current.Material(), Api::StandardMaterials::Dirt);
     ASSERT_EQ(deliveredRegions.size(), 2U);
     EXPECT_EQ(deliveredRegions[0], (Region{{1, 2, 3}, {3, 3, 4}}));
     EXPECT_EQ(deliveredRegions[1], (Region{{10, 2, 3}, {11, 3, 4}}));
+}
+
+TEST_F(ControllerTest, RemovalPublishesPreviousAndCurrentCells)
+{
+    const Placement placement{{4, 5, 6}, Api::StandardMaterials::Stone};
+    ASSERT_TRUE(Solids.Place(std::span{&placement, 1}));
+    std::vector<Api::CellChange> delivered;
+    auto subscription = Solids.Changes().Subscribe(
+        [&](const Changed &event) noexcept { delivered = event.Cells; });
+    const Position position{4, 5, 6};
+
+    ASSERT_TRUE(Solids.Remove(std::span{&position, 1}));
+    ASSERT_EQ(delivered.size(), 1U);
+    EXPECT_EQ(delivered[0].Previous.Material(), Api::StandardMaterials::Stone);
+    EXPECT_TRUE(delivered[0].Current.IsEmpty());
 }
 
 TEST_F(ControllerTest, FailedEditsDoNotPublishEvents)
